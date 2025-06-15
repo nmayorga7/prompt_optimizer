@@ -10,14 +10,27 @@ Note: helper token cost estimator function used to montor api usage
 
 '''
 
+import os
+from dotenv import load_dotenv
 from openai import OpenAI
-from config import OPENAI_API_KEY
-import helper
+from . import helper
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+load_dotenv()
+
+_client = None
+
+def get_client() -> OpenAI:
+    global _client
+    if _client is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY not found in environment variables")
+        _client = OpenAI(api_key=api_key)
+    return _client
 
 
 def classify_task(prompt: str, model: str):
+    client = get_client()
     response = client.chat.completions.create(
         model = model,
         messages= [{"role": "system", "content": "Classify the following prompt as on of the following tasks: summarization, question-answering, code-generation, creative-writing, translation, other"},
@@ -26,7 +39,9 @@ def classify_task(prompt: str, model: str):
     helper.log_api_usage(response, model)
     return response.choices[0].message.content.strip().lower()
 
-def clarify_prompt(prompt: str, task_type: str, model:str):
+def clarify_prompt(prompt: str, task_type: str, model: str):
+    client = get_client()
+    
     clarify_templates = {
         "summarization": "Summarize the following text in 3 bullet points:\n\n" + prompt,
         "question-answering": "Answer the following question clearly and concisely:\n\n" + prompt,
@@ -46,9 +61,11 @@ def clarify_prompt(prompt: str, task_type: str, model:str):
 
 
 def crispo_prompt(clarified_prompt: str, model: str):
+    client = get_client()
+    
     crispo_prompt = """
     You are a prompt optimization assistant. Given a user prompt, critique it across up to five of the most relevant from the following aspects: 
-    mumber_of_words, precision, recall, conciseness, syntax, specificity, level_of_detail, style, grammatical_structure, etc.
+    number_of_words, precision, recall, conciseness, syntax, specificity, level_of_detail, style, grammatical_structure, etc.
     
     Then suggest one concrete rewrite of the prompt that would likely improve its effectiveness for an AI model.
     
