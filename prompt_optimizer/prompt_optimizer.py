@@ -45,7 +45,8 @@ def classify_task(prompt: str, model: str):
         ],
     )
     helper.log_api_usage(response, model)
-    return response.choices[0].message.content.strip().lower()
+    content = response.choices[0].message.content
+    return (content.strip().lower() if content is not None else "")
 
 
 def clarify_prompt(prompt: str, task_type: str, model: str):
@@ -70,7 +71,8 @@ def clarify_prompt(prompt: str, task_type: str, model: str):
         model=model, messages=[{"role": "user", "content": clarify_instruction}]
     )
     helper.log_api_usage(response, model)
-    return response.choices[0].message.content.strip()
+    content = response.choices[0].message.content
+    return (content.strip() if content is not None else "")
 
 
 def crispo_prompt(clarified_prompt: str, model: str):
