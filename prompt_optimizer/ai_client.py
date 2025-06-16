@@ -3,7 +3,7 @@ AI client functions for interacting with OpenAI.
 """
 
 import os
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -26,15 +26,11 @@ def get_client() -> OpenAI:
 
 
 def chat_completion(
-    model: str,
-    messages: List[Dict[str, str]], 
-    temperature: float = 0.7
+    model: str, messages: List[Dict[str, str]], temperature: float = 0.7
 ) -> str:
     """Make a chat completion request to the AI model."""
     client = get_client()
     response = client.chat.completions.create(
-        model=model,
-        messages=messages,
-        temperature=temperature
+        model=model, messages=messages, temperature=temperature
     )
     return response.choices[0].message.content

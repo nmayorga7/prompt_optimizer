@@ -22,9 +22,16 @@ def parse_xml_response(response: str, tags: List[str]) -> Dict[str, str]:
 ASSESSMENT_TAGS = ["intent", "reasoning", "initial_understanding"]
 
 REFINEMENT_TAGS = [
-    "thinking", "extracted_context", "extracted_goal", "extracted_format",
-    "ai_role", "additional_insights", "score", "reasoning", 
-    "ready_to_finalize", "user_message"
+    "thinking",
+    "extracted_context",
+    "extracted_goal",
+    "extracted_format",
+    "ai_role",
+    "additional_insights",
+    "score",
+    "reasoning",
+    "ready_to_finalize",
+    "user_message",
 ]
 
 OPTIMIZATION_TAGS = ["thinking", "optimized_prompt", "improvement_summary"]

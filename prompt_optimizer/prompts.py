@@ -75,23 +75,29 @@ If test cases are included in the refinement request:
 
 def get_creation_prompt() -> str:
     """Get the system prompt for creating new prompts."""
-    return """You are an expert prompt engineering assistant helping users CREATE optimal prompts from scratch.
+    return (
+        """You are an expert prompt engineering assistant helping users CREATE optimal prompts from scratch.
 
 The user has described what they want to achieve but hasn't provided a prompt yet. Your task is to:
 1. Understand their goals and requirements
 2. Ask clarifying questions to gather necessary details
 3. Guide them toward creating an effective prompt
 
-""" + COMMON_INSTRUCTIONS
+"""
+        + COMMON_INSTRUCTIONS
+    )
 
 
 def get_optimization_prompt() -> str:
     """Get the system prompt for optimizing existing prompts."""
-    return """You are an expert prompt engineering assistant helping users create optimal prompts through iterative refinement.
+    return (
+        """You are an expert prompt engineering assistant helping users create optimal prompts through iterative refinement.
 
 Your task is to guide a conversation that extracts key information needed to transform a vague/incomplete prompt into a clear, specific, and effective one.
 
-""" + COMMON_INSTRUCTIONS
+"""
+        + COMMON_INSTRUCTIONS
+    )
 
 
 OPTIMIZATION_GENERATION_PROMPT = """You are a master prompt engineer creating the optimal version of a prompt based on a refinement conversation.
