@@ -1,12 +1,11 @@
 """
 
-PROMPT OPTIMIZER LOGIC:
-1. classify the prompt objective (task)
-2. based on task, feed raw prompt + corresponding clarification prompt
-3. feed clarified prompt into CRISPO-inspired single candidate optimizer (He et al., 2025)
-4. evaluate efficacy of optimized prompt
-
-Note: helper token cost estimator function used to montor api usage
+PROMPT OPTIMIZER LOGIC (REVISED - v2):
+1. initial user prompt --> high-level actionable feedback
+2. enter iterative refinement mode
+    goal: clarify (1) prompt context (2) user goals (3) desired response format/style
+    after each turn: restate understanding & ask follow-up questions
+3. user ends refinement → request final optimized prompt
 
 """
 
@@ -15,12 +14,9 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from . import helper
-
 load_dotenv()
 
 _client = None
-
 
 def get_client() -> OpenAI:
     global _client
@@ -31,82 +27,111 @@ def get_client() -> OpenAI:
         _client = OpenAI(api_key=api_key)
     return _client
 
+def crispo_review(user_input: str, model: str):
 
-def classify_task(prompt: str, model: str):
-    client = get_client()
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {
-                "role": "system",
-                "content": "Classify the following prompt as on of the following tasks: summarization, question-answering, code-generation, creative-writing, translation, other",
-            },
-            {"role": "user", "content": f"User Prompt: {prompt}"},
-        ],
-    )
-    helper.log_api_usage(response, model)
-    content = response.choices[0].message.content
-    return (content.strip().lower() if content is not None else "")
-
-
-def clarify_prompt(prompt: str, task_type: str, model: str):
     client = get_client()
 
-    clarify_templates = {
-        "summarization": "Summarize the following text in 3 bullet points:\n\n"
-        + prompt,
-        "question-answering": "Answer the following question clearly and concisely:\n\n"
-        + prompt,
-        "code-generation": "Write a clean, well-documented Python function for the following task:\n\n"
-        + prompt,
-        "translation": "Translate this text to Spanish (formal tone):\n\n" + prompt,
-        "creative-writing": "Rewrite this to sound more professional and structured:\n\n"
-        + prompt,
-        "other": "Make the following prompt clearer and more effective for an AI model:\n\n"
-        + prompt,
-    }
-    clarify_instruction = clarify_templates.get(task_type, clarify_templates["other"])
-
-    response = client.chat.completions.create(
-        model=model, messages=[{"role": "user", "content": clarify_instruction}]
-    )
-    helper.log_api_usage(response, model)
-    content = response.choices[0].message.content
-    return (content.strip() if content is not None else "")
-
-
-def crispo_prompt(clarified_prompt: str, model: str):
-    client = get_client()
-
-    crispo_prompt = """
+    crispo_review = """
     You are a prompt optimization assistant. Given a user prompt, critique it across up to five of the most relevant from the following aspects:
-    number_of_words, precision, recall, conciseness, syntax, specificity, level_of_detail, style, grammatical_structure, etc.
-
-    Then suggest one concrete rewrite of the prompt that would likely improve its effectiveness for an AI model.
+    number_of_words, precision, recall, conciseness, syntax, specificity, level_of_detail, style, grammatical_structure, etc. 
+    Identify any weaknesses or points for improvement, especially where the prompt may be vague, overly broad, or hard for an AI model to interpret correctly.
 
     Format your response like this:
     Critiques:
     - [Aspect]: [Comment]
     - [Aspect]: [Comment]
 
-    Final Optimized Suggestion:
-    [Rewritten prompt]
     """
 
     response = client.chat.completions.create(
         model=model,
         messages=[
-            {"role": "system", "content": crispo_prompt},
-            {"role": "user", "content": clarified_prompt},
+            {"role": "system", "content": crispo_review},
+            {"role": "user", "content": user_input},
         ],
     )
-    helper.log_api_usage(response, model)
     return response.choices[0].message.content
 
+def run_prompt_optimizer(model: str):
+    client = get_client()
+    user_input = input("Enter your initial prompt: ").strip()
 
-def run_prompt_optimizer(prompt: str, model: str):
-    task = classify_task(prompt, model)
-    clarified = clarify_prompt(prompt, task, model)
-    crispo = crispo_prompt(clarified, model)
+    # initial Crispo review
+    print("\nInitial Feedback (CriSPO-inspired):\n")
+    print(crispo_review(user_input, model))
 
-    return {"task_type": task, "clarified_prompt": clarified, "crispo_prompt": crispo}
+    # set up conversation state
+    conversation_state = {
+        "initial_prompt": user_input,
+        "context": None,
+        "goal": None,
+        "expected_output_format": None,
+        "history": [],
+    }
+
+    # start refinement loop
+    print("\nLet’s workshop this together. I’ll ask questions to better understand your intent.\n")
+
+    while True:
+        user_input = input("\nProvide clarification (or type 'finalize' to finish): ").strip()
+        if user_input.lower() == "finalize":
+            print("\n✅ Final optimized prompt:\n")
+            print(finalize_prompt(conversation_state, model))
+            break
+
+        conversation_state["history"].append(user_input)
+
+        # build system prompt dynamically with updated state
+        system_prompt = f"""
+            You are assisting a user in refining an AI prompt.
+
+            Here is the current version:
+            "{conversation_state['initial_prompt']}"
+
+            So far, here is what you know:
+            - Context: {conversation_state['context']}
+            - Goal: {conversation_state['goal']}
+            - Desired Output Format: {conversation_state['expected_output_format']}
+
+            Ask any follow-up clarifying questions that would help better understand the user's intent, especially around:
+            - the situation or domain (who/what/why)
+            - the specific goal or task the user wants solved
+            - the structure, tone, or style of the desired output
+
+            Then, update or correct your understanding of the prompt context, goal, and desired output based on the user response.
+        """
+
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_input},
+            ],
+        )
+
+        print("\n🤖 Assistant:\n")
+        print(response.choices[0].message.content)
+
+
+def finalize_prompt(state: dict, model: str):
+    client = get_client()
+
+    optimization_prompt = f"""
+        You are a prompt rewriting assistant. Based on the following understanding of the user's intent, rewrite the prompt to be as clear, specific, and optimized as possible:
+
+        - Context: {state['context']}
+        - Goal: {state['goal']}
+        - Expected Output Format: {state['expected_output_format']}
+
+        Original Prompt:
+        "{state['initial_prompt']}"
+
+        Return only the rewritten prompt, no explanation.
+    """
+
+    response = client.chat.completions.create(
+        model=model,
+        messages=[{"role": "system", "content": optimization_prompt}],
+    )
+
+    return response.choices[0].message.content.strip()
