@@ -1,13 +1,16 @@
 # Prompt Optimizer
 
-A tool to optimize user prompts through automated task identification and CRISPO-inspired single candidate optimization techniques (He et al., 2025).
+A tool to optimize user prompts through iterative self evaluation.
 
 ## Overview
 
-This tool helps improve prompt effectiveness by:
-1. **Task Classification**: Automatically identifies the type of task (summarization, question-answering, code-generation, etc.)
-2. **Prompt Clarification**: Enhances prompts based on their identified task type
-3. **CRISPO Optimization**: Applies critique-based optimization to generate improved prompts
+This tool improves prompt effectiveness through a structured optimization process:
+   1. Accepts the user's raw prompt input.
+   2. Generates challenging test cases to probe ambiguity, edge cases, and weaknesses.
+   3. Simulates responses to each test case using the current prompt.
+   4. Evaluates each response for shortcomings, misalignments with user intent, or lack of clarity.
+   5. Uses the ask_user tool when clarification is needed to resolve ambiguities.
+   6. Based on the evaluations and clarifications, generates a final, improved version of the prompt.
 
 ## Quick Start with UV (Recommended)
 
