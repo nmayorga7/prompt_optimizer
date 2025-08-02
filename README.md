@@ -1,6 +1,6 @@
 # Prompt Optimizer
 
-A tool to optimize user prompts through iterative self evaluation.
+A tool that uses structured optimization loops to iteratively test, evaluate, and refine user prompts for high-performance and clarity.
 
 ## Overview
 
